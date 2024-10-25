@@ -29,7 +29,6 @@ jobs:
       - name: Run tests
         run: cd backend && npm test
 
-      - run: npm init @eslint/config 
       - name: Lint code
         run: cd backend && npm run lint
 
