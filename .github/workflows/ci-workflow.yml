@@ -1,16 +1,62 @@
-name: Manual Trigger Workflow
+name: Full CI Workflow
 
 on:
   workflow_dispatch:
-
+    inputs:
+      environment:
+        description: 'Environment to deploy or test'
+        required: false
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - staging
+        - prod
 
 jobs:
-  run-shell:
+  build-and-test:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [ 16, 18 ]
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Run a simple script
-      run: echo "Hello from a manually triggered workflow!"
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Cache npm dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-${{ matrix.node-version }}-
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run tests
+      run: npm test
+
+    - name: Archive test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.node-version }}
+        path: test-results/
+
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.environment != '' && github.event.inputs.environment != 'dev' }}
+
+    steps:
+    - name: Deployment stub
+      run: |
+        echo "Deploying to ${{ github.event.inputs.environment }} environment"
